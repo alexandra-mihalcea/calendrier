@@ -1,0 +1,144 @@
+@typeparam TItem
+@if (Show)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < LocalItems.Count; i++)
+                            {
+                                <tr>
+                                    <td>@GetId(LocalItems[i])</td>
+                                    <td>
+                                        <input class="form-control" value="@GetName(LocalItems[i])" @oninput="(e) => SetName(LocalItems[i], e.Value?.ToString() ?? string.Empty)" />
+                                    </td>
+                                </tr>
+                            }
+                            <tr>
+                                <td>@_nextId</td>
+                                <td>
+                                    <input class="form-control" @bind="NewName" @bind:event="oninput" @onkeydown="HandleNewNameKeyDown" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="OnCancelClicked">Cancel</button>
+                    <button class="btn btn-success" @onclick="OnSaveClicked">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public List<TItem> EditableItems { get; set; } = new();
+    [Parameter] public int NextId { get; set; }
+    [Parameter] public Func<TItem, int> GetId { get; set; } = default!;
+    [Parameter] public Func<TItem, string> GetName { get; set; } = default!;
+    [Parameter] public Action<TItem, string> SetName { get; set; } = default!;
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private List<TItem> LocalItems = new();
+    private string NewName { get; set; } = "";
+    private int _nextId;
+
+    protected override void OnParametersSet()
+    {
+        LocalItems = EditableItems.Select(item =>
+        {
+            var newItem = Activator.CreateInstance<TItem>();
+            SetName(newItem, GetName(item));
+            var idProp = typeof(TItem).GetProperty("Id");
+            if (idProp != null && idProp.CanWrite)
+                idProp.SetValue(newItem, GetId(item));
+            return newItem;
+        }).ToList();
+
+        // Set _nextId to the max existing id + 1 or NextId if higher
+        var maxId = LocalItems.Count > 0 ? LocalItems.Max(GetId) : 0;
+        _nextId = Math.Max(maxId + 1, NextId);
+    }
+
+    @code {  
+        [Inject] private AppSettings AppSettings { get; set; } = default!;  
+
+        private async Task OnSaveClicked()  
+        {  
+            if (!string.IsNullOrWhiteSpace(NewName))  
+            {  
+                AddNewRow();  
+            }  
+
+            EditableItems.Clear();  
+            EditableItems.AddRange(LocalItems.Where(item => !string.IsNullOrWhiteSpace(GetName(item))));  
+
+            // Save to orderdata using AppSettingsService  
+            var filePath = AppSettings.OrderDataFilePath;  
+            if (!string.IsNullOrWhiteSpace(filePath))  
+            {  
+                if (System.IO.File.Exists(filePath))  
+                {  
+                    var json = await System.IO.File.ReadAllTextAsync(filePath);  
+                    var orderData = System.Text.Json.JsonSerializer.Deserialize<orderData>(json);  
+                    if (orderData != null)  
+                    {  
+                        // Find the property to update  
+                        var prop = typeof(orderData).GetProperties()  
+                            .FirstOrDefault(p => p.PropertyType == typeof(List<TItem>));  
+                        if (prop != null)  
+                        {  
+                            prop.SetValue(orderData, EditableItems.ToList());  
+                            var newJson = System.Text.Json.JsonSerializer.Serialize(orderData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });  
+                            await System.IO.File.WriteAllTextAsync(filePath, newJson);  
+                        }  
+                    }  
+                }  
+            }  
+
+            Show = false;  
+            await InvokeAsync(StateHasChanged);  
+        }  
+    }
+
+    private async Task OnCancelClicked()
+    {
+        Show = false;
+        await OnCancel.InvokeAsync();
+    }
+
+    private async Task HandleNewNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(NewName))
+        {
+            AddNewRow();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void AddNewRow()
+    {
+        var newItem = Activator.CreateInstance<TItem>();
+        SetName(newItem, NewName.Trim());
+        var idProp = typeof(TItem).GetProperty("Id");
+        if (idProp != null && idProp.CanWrite)
+            idProp.SetValue(newItem, _nextId);
+        LocalItems.Add(newItem);
+        _nextId++;
+        NewName = "";
+    }
+}

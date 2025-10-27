@@ -1,0 +1,391 @@
+﻿@page "/orders"
+@using System.Text.Json
+@using Calendrier.Components.Shared
+@using Microsoft.Extensions.Configuration
+
+@if (OrderDataList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-sm table-bordered">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Website</th>
+                <th>Ordered</th>
+                <th>Paid</th>
+                <th>Received</th>
+                <th>Release Date</th>
+                <th>Rough Date</th>
+                <th>Month</th>
+                <th>Price</th>
+                <th>Paid From</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in OrderDataList)
+            {
+                <tr>
+                    <td>
+                        @{
+                            var type = ProductTypes.FirstOrDefault(t => t.Id == item.ProductTypeId);
+                        }
+                        @type?.Name
+                    </td>
+                    <td>@item.Name</td>
+                    <td><a href="@item.Url" target="_blank">@item.Website</a></td>
+                    <td style="background:@GetStatusColor(item.Ordered)">
+                        <a href="@item.OrderUrl" target="_blank">@GetStatusIcon(item.Ordered)</a>
+                    </td>
+                    <td style="background:@GetStatusColor(item.Paid)">
+                        <a href="@item.OrderUrl" target="_blank">@GetStatusIcon(item.Paid)</a>
+                    </td>
+                    <td style="background:@GetStatusColor(item.Received)">
+                        @GetStatusIcon(item.Received)
+                    </td>
+                    <td>@item.ReleaseDate</td>
+                    <td>@item.RoughDate</td>
+                    <td>@item.Month</td>
+                    <td>@item.Price</td>
+                    <td>
+                        <select class="form-select" @onchange="(e) => UpdatePaidFrom(item, e.Value?.ToString())">
+                            @foreach (var method in PaymentMethods)
+                            {
+                                <option value="@method.Id" selected="@(item.PaidFrom == method.Id)">
+                                    @method.Name
+                                </option>
+                            }
+                        </select>
+                    </td>   
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h3>Add New Entry</h3>
+<div class="row g-2">
+    <div class="col">
+        <select class="form-select" @bind="ProductTypeId" @bind:event="onchange">
+            <option value="">Select type</option>
+            @foreach (var type in ProductTypes)
+            {
+                <option value="@type.Id">@type.Name</option>
+            }
+            <option value="-1">Add new...</option>
+        </select>
+    </div>
+    <div class="col"><input class="form-control" placeholder="Name" @bind="NewItem.Name" /></div>
+    <div class="col"><input class="form-control" placeholder="Website" @bind="NewItem.Website" /></div>
+    <div class="col"><input class="form-control" placeholder="URL" @bind="NewItem.Url" /></div>
+    <div class="col"><input class="form-control" placeholder="Order URL" @bind="NewItem.OrderUrl" /></div>
+    <div class="col"><input class="form-control" placeholder="Ordered" @bind="NewItem.Ordered" /></div>
+    <div class="col"><input class="form-control" placeholder="Paid" @bind="NewItem.Paid" /></div>
+    <div class="col"><input class="form-control" placeholder="Received" @bind="NewItem.Received" /></div>
+    <div class="col"><input class="form-control" placeholder="Release Date" @bind="NewItem.ReleaseDate" /></div>
+    <div class="col"><input class="form-control" placeholder="Rough Date" @bind="NewItem.RoughDate" /></div>
+    <div class="col"><input class="form-control" placeholder="Month" @bind="NewItem.Month" /></div>
+    <div class="col"><input class="form-control" placeholder="Price" @bind="NewItem.Price" /></div>
+    <div class="col">
+        <select class="form-select" @bind="PaidFrom" @bind:event="onchange">
+            <option value="">Select payment method</option>
+            @foreach (var method in PaymentMethods)
+            {
+                <option value="@method.Id">@method.Name</option>
+            }
+            <option value="-1">Add new...</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" @onclick="AddNewItem">Add</button>
+    </div>
+</div>
+
+<EditListModal TItem="PaymentMethodItem"
+               Title="Edit Payment Methods"
+               Show="@ShowAddPaymentMethodModal"
+               EditableItems="@EditablePaymentMethods"
+               NextId="@NextPaymentMethodId"
+               GetId="@(pm => pm.Id)"
+               GetName="@(pm => pm.Name)"
+               SetName="@( (pm, val) => pm.Name = val )"
+               OnCancel="CancelEditPaymentMethods" />
+
+<EditListModal TItem="ProductTypeItem"
+               Title="Edit Product Types"
+               Show="@ShowAddProductTypeModal"
+               EditableItems="@EditableProductTypes"
+               NextId="@NextProductTypeId"
+               GetId="@(pt => pt.Id)"
+               GetName="@(pt => pt.Name)"
+               SetName="@( (pt, val) => pt.Name = val )"
+               OnCancel="CancelEditProductTypes" />
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (File.Exists(OrderDataFilePath))
+        {
+            var orderDataJson = await File.ReadAllTextAsync(OrderDataFilePath);
+            try
+            {
+                var orderData = JsonSerializer.Deserialize<orderData>(
+                    string.IsNullOrWhiteSpace(orderDataJson) || orderDataJson == "{}"
+                        ? "{\"orders\":[],\"paymentmethods\":[],\"producttypes\":[]}"
+                        : orderDataJson);
+
+                if (orderData?.Orders != null)
+                    OrderDataList = orderData.Orders;
+                if (orderData?.PaymentMethods != null)
+                    PaymentMethods = orderData.PaymentMethods;
+                if (orderData?.ProductTypes != null)
+                    ProductTypes = orderData.ProductTypes;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Deserialization error: {ex.Message}");
+                OrderDataList = new List<OrderItem>();
+                PaymentMethods = new List<PaymentMethodItem>();
+                ProductTypes = new List<ProductTypeItem>();
+            }
+        }
+    }
+
+    private string OrderDataFilePath => Configuration["OrderDataFilePath"] ?? Path.Combine(AppContext.BaseDirectory, ".orderData");
+
+    [Inject]
+    private IConfiguration Configuration { get; set; } = default!;
+
+    private List<OrderItem> OrderDataList { get; set; } = new();
+    private OrderItem NewItem { get; set; } = new();
+    private List<PaymentMethodItem> PaymentMethods { get; set; } = new();
+    private List<ProductTypeItem> ProductTypes { get; set; } = new();
+    private string NewPaymentMethodName { get; set; } = string.Empty;
+    private string NewProductTypeName { get; set; } = string.Empty;
+    private bool ShowAddPaymentMethodModal { get; set; } = false;
+    private bool ShowAddProductTypeModal { get; set; } = false;
+    private OrderItem? EditingOrderItem { get; set; } = null;
+    private bool IsForNewItem { get; set; } = false;
+
+    private List<PaymentMethodItem> EditablePaymentMethods { get; set; } = new();
+    private List<ProductTypeItem> EditableProductTypes { get; set; } = new();
+
+    private int NextPaymentMethodId => (EditablePaymentMethods.Count > 0 ? EditablePaymentMethods.Max(pm => pm.Id) : 0) + 1;
+    private int NextProductTypeId => (EditableProductTypes.Count > 0 ? EditableProductTypes.Max(pt => pt.Id) : 0) + 1;
+
+    private void ShowEditPaymentMethods()
+    {
+        EditablePaymentMethods = PaymentMethods.Select(pm => new PaymentMethodItem { Id = pm.Id, Name = pm.Name }).ToList();
+        NewPaymentMethodName = string.Empty;
+        ShowAddPaymentMethodModal = true;
+    }
+
+    private void ShowEditProductTypes()
+    {
+        EditableProductTypes = ProductTypes.Select(pt => new ProductTypeItem { Id = pt.Id, Name = pt.Name }).ToList();
+        NewProductTypeName = string.Empty;
+        ShowAddProductTypeModal = true;
+    }
+
+    private async Task SaveEditPaymentMethods()
+    {
+        var trimmed = EditablePaymentMethods
+            .Where(pm => !string.IsNullOrWhiteSpace(pm.Name))
+            .Select(pm => new PaymentMethodItem { Id = pm.Id, Name = pm.Name.Trim() })
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(NewPaymentMethodName))
+        {
+            trimmed.Add(new PaymentMethodItem { Id = NextPaymentMethodId, Name = NewPaymentMethodName.Trim() });
+        }
+
+        PaymentMethods = trimmed;
+        // Update the main list as well
+        EditablePaymentMethods = PaymentMethods.Select(pm => new PaymentMethodItem { Id = pm.Id, Name = pm.Name }).ToList();
+
+        var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
+        await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        NewPaymentMethodName = string.Empty;
+        ShowAddPaymentMethodModal = false;
+        StateHasChanged();
+    }
+
+    private void CancelEditPaymentMethods()
+    {
+        NewPaymentMethodName = string.Empty;
+        ShowAddPaymentMethodModal = false;
+    }
+
+    private async Task SaveEditProductTypes()
+    {
+        var trimmed = EditableProductTypes
+            .Where(pt => !string.IsNullOrWhiteSpace(pt.Name))
+            .Select(pt => new ProductTypeItem { Id = pt.Id, Name = pt.Name.Trim() })
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(NewProductTypeName))
+        {
+            trimmed.Add(new ProductTypeItem { Id = NextProductTypeId, Name = NewProductTypeName.Trim() });
+        }
+
+        ProductTypes = trimmed;
+        // Update the main list as well
+        EditableProductTypes = ProductTypes.Select(pt => new ProductTypeItem { Id = pt.Id, Name = pt.Name }).ToList();
+
+        var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
+        await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        NewProductTypeName = string.Empty;
+        ShowAddProductTypeModal = false;
+        StateHasChanged();
+    }
+
+    private void CancelEditProductTypes()
+    {
+        NewProductTypeName = string.Empty;
+        ShowAddProductTypeModal = false;
+    }
+
+    private int? _paidFrom;
+    private int? PaidFrom
+    {
+        get => NewItem.PaidFrom;
+        set
+        {
+            if (value == -1)
+            {
+                ShowAddPaymentMethodModal = true;
+                EditingOrderItem = null;
+                IsForNewItem = true;
+            }
+            else
+            {
+                NewItem.PaidFrom = value;
+            }
+        }
+    }
+
+    private int? ProductTypeId
+    {
+        get => NewItem.ProductTypeId;
+        set
+        {
+            if (value == -1)
+            {
+                ShowAddProductTypeModal = true;
+            }
+            else
+            {
+                NewItem.ProductTypeId = value;
+            }
+        }
+    }
+
+    private async Task AddNewItem()
+    {
+        OrderDataList.Add(NewItem);
+        NewItem = new OrderItem();
+        var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
+        await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        StateHasChanged();
+    }
+
+    private string GetStatusColor(bool? value) =>
+        value == true ? "#d4edda" : value == false ? "#f8d7da" : "#fdfd96"; // green, red, yellow
+
+    private MarkupString GetStatusIcon(bool? value) =>
+        value == true ? (MarkupString)"✔️" : value == false ? (MarkupString)"❌" : (MarkupString)"";
+
+    private async void SaveAddPaymentMethod()
+    {
+        if (!string.IsNullOrWhiteSpace(NewPaymentMethodName) &&
+            !PaymentMethods.Any(pm => pm.Name.Equals(NewPaymentMethodName, StringComparison.OrdinalIgnoreCase)))
+        {
+            int newId = PaymentMethods.Any() ? PaymentMethods.Max(pm => pm.Id) + 1 : 1;
+            var newMethod = new PaymentMethodItem { Id = newId, Name = NewPaymentMethodName };
+            PaymentMethods.Add(newMethod);
+
+            if (IsForNewItem)
+            {
+                NewItem.PaidFrom = newId;
+            }
+            else if (EditingOrderItem != null)
+            {
+                EditingOrderItem.PaidFrom = newId;
+            }
+
+            // Save updated PaymentMethods to user data file
+            var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
+            await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        NewPaymentMethodName = string.Empty;
+        ShowAddPaymentMethodModal = false;
+        EditingOrderItem = null;
+        IsForNewItem = false;
+        StateHasChanged();
+    }
+
+    private void CancelAddPaymentMethod()
+    {
+        NewPaymentMethodName = string.Empty;
+        ShowAddPaymentMethodModal = false;
+        EditingOrderItem = null;
+        IsForNewItem = false;
+    }
+
+    private async void SaveAddProductType()
+    {
+        if (!string.IsNullOrWhiteSpace(NewProductTypeName) &&
+            !ProductTypes.Any(t => t.Name.Equals(NewProductTypeName, StringComparison.OrdinalIgnoreCase)))
+        {
+            int newId = ProductTypes.Any() ? ProductTypes.Max(t => t.Id) + 1 : 1;
+            var newType = new ProductTypeItem { Id = newId, Name = NewProductTypeName };
+            ProductTypes.Add(newType);
+            NewItem.ProductTypeId = newId;
+
+            // Save updated ProductTypes to user data file
+            var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
+            await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        NewProductTypeName = string.Empty;
+        ShowAddProductTypeModal = false;
+        StateHasChanged();
+    }
+
+    private void CancelAddProductType()
+    {
+        NewProductTypeName = string.Empty;
+        ShowAddProductTypeModal = false;
+    }
+
+    private void UpdatePaidFrom(OrderItem item, string? value)
+    {
+        if (value == "-1")
+        {
+            ShowAddPaymentMethodModal = true;
+            EditingOrderItem = item;
+            IsForNewItem = false;
+        }
+        else if (int.TryParse(value, out int id))
+        {
+            item.PaidFrom = id;
+        }
+    }
+
+    private void OnNewPaidFromChanged(string? value)
+    {
+        if (value == "-1")
+        {
+            ShowAddPaymentMethodModal = true;
+            EditingOrderItem = null;
+            IsForNewItem = true;
+        }
+        else if (int.TryParse(value, out int id))
+        {
+            NewItem.PaidFrom = id;
+        }
+    }
+}

@@ -1,0 +1,73 @@
+﻿# Ignore Visual Studio specific files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Ignore build outputs
+bin/
+obj/
+
+# Ignore .NET specific files
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.ide/
+*.vsconfig
+
+# Ignore NuGet packages
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!packages/build/
+!packages/repositories.config
+
+# Ignore logs and temporary files
+*.log
+*.tlog
+*.tmp
+*.tmp.*
+*.log.*
+*.cache
+*.pdb
+*.mdb
+
+# Ignore application insights
+ApplicationInsights.config
+ApplicationInsights.config.install.xdt
+
+# Ignore user secrets
+secrets.json
+
+# Ignore local settings
+appsettings.Development.json
+appsettings.Local.json
+
+# Ignore generated files
+Generated_Code/
+
+# Ignore macOS specific files
+.DS_Store
+
+# Ignore Windows specific files
+Thumbs.db
+desktop.ini
+
+# Ignore JetBrains Rider/IDEA specific files
+.idea/
+*.sln.iml
+
+# Ignore MAUI specific files
+platforms/
+Resources/Raw/
+Resources/Drawable/
+Resources/values/
+Resources/values-night/
+
+# Ignore wwwroot build outputs
+wwwroot/dist/
+wwwroot/node_modules/
+wwwroot/css/
+wwwroot/js/
