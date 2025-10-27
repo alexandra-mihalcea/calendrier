@@ -50,6 +50,12 @@
     </div>
 </div>
 <div class="mb-3 row align-items-center">
+    <label class="col-form-label col-2">Google API Key:</label>
+    <div class="col-7 d-flex">
+        <input class="form-control" value="@GoogleAPIKey" @onchange="OnGoogleAPIKeyPathChanged" />
+    </div>
+</div>
+<div class="mb-3 row align-items-center">
     <label class="col-form-label col-2">Theme:</label>
     <div class="col-9">
         <input type="checkbox" id="dark" name="theme" value="true" checked="@DarkMode" @onchange="OnThemeChanged" />
@@ -67,6 +73,11 @@
     {
         get => AppSettingsService.Settings.OrderDataFilePath;
         set => AppSettingsService.Settings.OrderDataFilePath = value;
+    }
+    private string GoogleAPIKey
+    {
+        get => AppSettingsService.Settings.GoogleAPIKey;
+        set => AppSettingsService.Settings.GoogleAPIKey = value;
     }
     private bool DarkMode
     {
@@ -97,6 +108,12 @@
     private async Task OnOrderDataFilePathChanged(ChangeEventArgs e)
     {
         OrderDataFilePath = e.Value?.ToString() ?? OrderDataFilePath;
+        await SaveSettings();
+    }
+
+    private async Task OnGoogleAPIKeyPathChanged(ChangeEventArgs e)
+    {
+        GoogleAPIKey = e.Value?.ToString() ?? GoogleAPIKey;
         await SaveSettings();
     }
 
