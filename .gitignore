@@ -58,15 +58,3 @@ desktop.ini
 # Ignore JetBrains Rider/IDEA specific files
 .idea/
 *.sln.iml
-
-# Ignore MAUI specific files
-Resources/Raw/
-Resources/Drawable/
-Resources/values/
-Resources/values-night/
-
-# Ignore wwwroot build outputs
-wwwroot/dist/
-wwwroot/node_modules/
-wwwroot/css/
-wwwroot/js/
