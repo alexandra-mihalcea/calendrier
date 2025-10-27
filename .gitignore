@@ -60,7 +60,6 @@ desktop.ini
 *.sln.iml
 
 # Ignore MAUI specific files
-platforms/
 Resources/Raw/
 Resources/Drawable/
 Resources/values/
