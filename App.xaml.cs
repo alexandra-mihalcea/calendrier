@@ -9,7 +9,7 @@ namespace Calendrier
             InitializeComponent();
 
             // Load settings at startup (fire and forget)
-            _ = appSettingsService.LoadAsync();
+            _ = appSettingsService.LoadOrCreateAsync();
         }
 
         protected override Window CreateWindow(IActivationState? activationState)
