@@ -59,7 +59,7 @@ else
                                 </option>
                             }
                         </select>
-                    </td>   
+                    </td>
                 </tr>
             }
         </tbody>
@@ -128,30 +128,27 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (File.Exists(OrderDataFilePath))
+        try
         {
             var orderDataJson = await File.ReadAllTextAsync(OrderDataFilePath);
-            try
-            {
-                var orderData = JsonSerializer.Deserialize<orderData>(
-                    string.IsNullOrWhiteSpace(orderDataJson) || orderDataJson == "{}"
-                        ? "{\"orders\":[],\"paymentmethods\":[],\"producttypes\":[]}"
-                        : orderDataJson);
+            var orderData = JsonSerializer.Deserialize<orderData>(
+                string.IsNullOrWhiteSpace(orderDataJson) || orderDataJson == "{}"
+                    ? "{\"orders\":[],\"paymentmethods\":[],\"producttypes\":[]}"
+                    : orderDataJson);
 
-                if (orderData?.Orders != null)
-                    OrderDataList = orderData.Orders;
-                if (orderData?.PaymentMethods != null)
-                    PaymentMethods = orderData.PaymentMethods;
-                if (orderData?.ProductTypes != null)
-                    ProductTypes = orderData.ProductTypes;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Deserialization error: {ex.Message}");
-                OrderDataList = new List<OrderItem>();
-                PaymentMethods = new List<PaymentMethodItem>();
-                ProductTypes = new List<ProductTypeItem>();
-            }
+            if (orderData?.Orders != null)
+                OrderDataList = orderData.Orders;
+            if (orderData?.PaymentMethods != null)
+                PaymentMethods = orderData.PaymentMethods;
+            if (orderData?.ProductTypes != null)
+                ProductTypes = orderData.ProductTypes;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Deserialization error: {ex.Message}");
+            OrderDataList = new List<OrderItem>();
+            PaymentMethods = new List<PaymentMethodItem>();
+            ProductTypes = new List<ProductTypeItem>();
         }
     }
 
