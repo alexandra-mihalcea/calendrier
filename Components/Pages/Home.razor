@@ -1,11 +1,23 @@
 ﻿@page "/"
 @implements IDisposable
+@inject Calendrier.Services.AppSettingsService AppSettingsService
 
 <div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
     <div class="text-center">
-        <div class="display-1 fw-bold gradient-text">@CurrentTime</div>
-        <div class="h3 text-muted mt-2">@DateLine</div>
-        <div class="h5 text-muted mt-1">@DayName</div>
+        @if (IsClockVisible)
+        {
+            <div class="display-1 fw-bold">@FormattedTime</div>
+        }
+
+        @if (IsDateVisible)
+        {
+            <div class="h3 text-muted mt-3">@FormattedDate</div>
+        }
+
+        @if (IsDayVisible)
+        {
+            <div class="h5 text-muted mt-1">@FormattedDay</div>
+        }
     </div>
 </div>
 
@@ -13,16 +25,72 @@
     private DateTime _now = DateTime.Now;
     private System.Timers.Timer? _timer;
 
-    private string CurrentTime => _now.ToString("h:mmtt"); // e.g. 4:34PM
-    private string DayName => _now.ToString("dddd");      // e.g. Thursday
-    private string DateLine => $"{GetOrdinal(_now.Day)} of {_now:MMMM}"; // e.g. 5th of October
+    // read settings with safe defaults if properties are missing
+    private bool IsClockVisible => AppSettingsService?.Settings?.ClockVisible ?? true;
+    private int ClockFormatIndex => AppSettingsService?.Settings?.ClockFormat ?? 0;
+
+    private bool IsDateVisible => AppSettingsService?.Settings?.DateVisible ?? true;
+    private int DateFormatIndex => AppSettingsService?.Settings?.DateFormat ?? 0;
+
+    private bool IsDayVisible => AppSettingsService?.Settings?.DayVisible ?? true;
+    private int DayFormatIndex => AppSettingsService?.Settings?.DayFormat ?? 0;
+
+    private readonly string[] ClockFormats = new[]
+    {
+        "h:mmtt",        // 4:34PM
+        "hh:mm tt",      // 04:34 PM
+        "H:mm",          // 16:34
+        "HH:mm",         // 16:34 (2-digit hour)
+        "h:mm:sstt",     // 4:34:05PM
+        "hh:mm:ss",      // 04:34:05
+        "h:mm",          // 4:34
+        "hh:mm",         // 04:34
+        "h:mm:ss",       // 4:34:05
+        "HH:mm:ss"       // 16:34:05
+    };
+
+    private readonly string[] DateFormats = new[]
+    {
+        "ORDINAL",               // 5th of October (custom)
+        "d MMMM",                // 5 October
+        "MMMM d, yyyy",          // October 5, 2025
+        "dd/MM/yyyy",            // 05/10/2025
+        "MM/dd/yyyy",            // 10/05/2025
+        "d MMM",                 // 5 Oct
+        "yyyy-MM-dd",            // 2025-10-05
+        "MMMM yyyy",             // October 2025
+        "ORDINAL_ALT",           // 5th October (alternate)
+        "dd MMM yyyy"            // 05 Oct 2025
+    };
+
+    private readonly int[] DayUpperCaseOptions = new[] { 4, 5 }; // indices for uppercase day variants in DayFormats
+
+    private readonly string[] DayFormats = new[]
+    {
+        "dddd",                  // Thursday
+        "ddd",                   // Thu
+        "dddd, MMMM d",          // Thursday, October 5
+        "ddd, MMM d",            // Thu, Oct 5
+        "dddd",                  // Thursday (will be uppercased by logic if option chosen)
+        "ddd",                   // Thu (uppercased)
+        "dddd - MMMM",           // Thursday - October
+        "dddd, yyyy",            // Thursday, 2025
+        "dddd • MMM d",          // Thursday • Oct 5
+        "ddd • d"                // Thu • 5
+    };
+
+    private string FormattedTime => FormatClock(_now, ClockFormatIndex);
+    private string FormattedDate => FormatDate(_now, DateFormatIndex);
+    private string FormattedDay => FormatDay(_now, DayFormatIndex);
 
     protected override void OnInitialized()
     {
+        // subscribe to settings changes so UI updates immediately when user edits format/visibility
+        AppSettingsService.SettingsChanged += OnSettingsChanged;
+
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += (s, e) =>
         {
-            // run UI update on renderer thread
             _ = InvokeAsync(() =>
             {
                 _now = DateTime.Now;
@@ -31,6 +99,59 @@
         };
         _timer.AutoReset = true;
         _timer.Start();
+    }
+
+    private void OnSettingsChanged()
+    {
+        // re-render when settings change
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private string FormatClock(DateTime dt, int idx)
+    {
+        if (idx < 0 || idx >= ClockFormats.Length) idx = 0;
+        var fmt = ClockFormats[idx];
+        try
+        {
+            return dt.ToString(fmt);
+        }
+        catch
+        {
+            return dt.ToString("h:mmtt");
+        }
+    }
+
+    private string FormatDate(DateTime dt, int idx)
+    {
+        if (idx < 0 || idx >= DateFormats.Length) idx = 0;
+        var fmt = DateFormats[idx];
+        if (fmt == "ORDINAL")
+        {
+            return $"{GetOrdinal(dt.Day)} of {dt:MMMM}";
+        }
+        if (fmt == "ORDINAL_ALT")
+        {
+            return $"{GetOrdinal(dt.Day)} {dt:MMMM}";
+        }
+        try
+        {
+            return dt.ToString(fmt);
+        }
+        catch
+        {
+            return $"{GetOrdinal(dt.Day)} of {dt:MMMM}";
+        }
+    }
+
+    private string FormatDay(DateTime dt, int idx)
+    {
+        if (idx < 0 || idx >= DayFormats.Length) idx = 0;
+        var fmt = DayFormats[idx];
+        var result = dt.ToString(fmt);
+        // uppercase variants (for options 4 and 5)
+        if (idx == 4 || idx == 5)
+            result = result.ToUpperInvariant();
+        return result;
     }
 
     private static string GetOrdinal(int day)
@@ -49,5 +170,6 @@
     {
         _timer?.Stop();
         _timer?.Dispose();
+        AppSettingsService.SettingsChanged -= OnSettingsChanged;
     }
 }
