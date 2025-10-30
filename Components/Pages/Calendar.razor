@@ -1,10 +1,11 @@
 ﻿@page "/calendar"
 
+@using Syncfusion.Blazor
 @using Syncfusion.Blazor.Calendars
 
 <h1>Calendar</h1>
-@* 
-<SfCalendar TValue="DateTime" @bind-Value="selectedDate"></SfCalendar>
+
+@* <SfCalendar TValue="DateTime" @bind-Value="selectedDate"></SfCalendar>
 
 <p>Selected date: @selectedDate.ToShortDateString()</p>
 
@@ -12,3 +13,10 @@
     private DateTime selectedDate = DateTime.Today;
 }
  *@
+ <SfCalendar TValue="DateTime?" IsMultiSelection=true Values="@MultipleValues"></SfCalendar>
+
+@code {
+public DateTime[] MultipleValues { get; set; } = new DateTime[] { new DateTime(DateTime.Now.Year, DateTime.Now.Month, 10),
+        new DateTime(DateTime.Now.Year, DateTime.Now.Month, 15),
+        new DateTime(DateTime.Now.Year, DateTime.Now.Month, 25) };
+}
