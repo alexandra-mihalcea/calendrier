@@ -38,7 +38,7 @@ else
                         @type?.Name
                     </td>
                     <td>@item.Name</td>
-                    <td><a href="@item.Url" target="_blank">@item.Website</a></td>
+                    <td><a href="@item.ItemUrl" target="_blank">@item.Website</a></td>
                     <td style="background:@GetStatusColor(item.Ordered)">
                         <a href="@item.OrderUrl" target="_blank">@GetStatusIcon(item.Ordered)</a>
                     </td>
@@ -82,14 +82,14 @@ else
     </div>
     <div class="col"><input class="form-control" placeholder="Name" @bind="NewItem.Name" /></div>
     <div class="col"><input class="form-control" placeholder="Website" @bind="NewItem.Website" /></div>
-    <div class="col"><input class="form-control" placeholder="URL" @bind="NewItem.Url" /></div>
+    <div class="col"><input class="form-control" placeholder="URL" @bind="NewItem.ItemUrl" /></div>
     <div class="col"><input class="form-control" placeholder="Order URL" @bind="NewItem.OrderUrl" /></div>
     <div class="col"><input class="form-control" placeholder="Ordered" @bind="NewItem.Ordered" /></div>
     <div class="col"><input class="form-control" placeholder="Paid" @bind="NewItem.Paid" /></div>
     <div class="col"><input class="form-control" placeholder="Received" @bind="NewItem.Received" /></div>
     <div class="col"><input class="form-control" placeholder="Release Date" @bind="NewItem.ReleaseDate" /></div>
     <div class="col"><input class="form-control" placeholder="Rough Date" @bind="NewItem.RoughDate" /></div>
-    <div class="col"><input class="form-control" placeholder="Month" @bind="NewItem.Month" /></div>
+    <div class="col"><input class="form-control" placeholder="Month" value="@NewItem.Month" readonly /></div>
     <div class="col"><input class="form-control" placeholder="Price" @bind="NewItem.Price" /></div>
     <div class="col">
         <select class="form-select" @bind="PaidFrom" @bind:event="onchange">
