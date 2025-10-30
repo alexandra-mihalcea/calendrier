@@ -15,3 +15,44 @@
         </article>
     </main>
 </div>
+
+@code {
+    [Inject] private Calendrier.Services.AppSettingsService AppSettingsService { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private bool IsDark;
+
+    protected override void OnInitialized()
+    {
+        IsDark = AppSettingsService.Settings.DarkMode;
+        AppSettingsService.SettingsChanged += HandleSettingsChanged;
+        // set initial theme (fire-and-forget)
+        _ = SetBootstrapThemeAsync(IsDark);
+    }
+
+    private void HandleSettingsChanged()
+    {
+        IsDark = AppSettingsService.Settings.DarkMode;
+        // update bootstrap theme when settings change
+        _ = SetBootstrapThemeAsync(IsDark);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SetBootstrapThemeAsync(bool dark)
+    {
+        try
+        {
+            var theme = dark ? "dark" : "light";
+            await JS.InvokeVoidAsync("blazorSetTheme", theme);
+        }
+        catch
+        {
+            // ignore JS errors (e.g. during server-side prerender)
+        }
+    }
+
+    public void Dispose()
+    {
+        AppSettingsService.SettingsChanged -= HandleSettingsChanged;
+    }
+}
