@@ -1,0 +1,76 @@
+@using System.Xml.Linq
+@inject IJSRuntime JS
+
+@if (!string.IsNullOrEmpty(_renderMarkup))
+{
+    @((MarkupString)_renderMarkup)
+}
+else if (!string.IsNullOrEmpty(Name))
+{
+    <img src="@GetSrc()" class="@Class" style="@Style" width="@Width" height="@Height" alt="@AriaLabel ?? Name" />
+}
+
+@code {
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public string? Role { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Width { get; set; }
+    [Parameter] public string? Height { get; set; }
+
+    private string? _renderMarkup;
+    private string? _lastPath;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (string.IsNullOrWhiteSpace(Name))
+            return;
+
+        var path = GetSrc();
+        if (_lastPath == path)
+            return;
+
+        _lastPath = path;
+
+        try
+        {
+            var raw = await JS.InvokeAsync<string?>("fetchText", path);
+            _renderMarkup = ApplyAttributesToRootSvg(raw);
+        }
+        catch
+        {
+            _renderMarkup = null; // fallback to <img>
+        }
+
+        StateHasChanged();
+    }
+
+    private string GetSrc() => $"svg/{Name}.svg";
+
+    private string? ApplyAttributesToRootSvg(string? svg)
+    {
+        if (string.IsNullOrWhiteSpace(svg)) return null;
+
+        try
+        {
+            XDocument doc = XDocument.Parse(svg, LoadOptions.PreserveWhitespace | LoadOptions.SetLineInfo);
+            var root = doc.Root;
+            if (root is null || !string.Equals(root.Name.LocalName, "svg", StringComparison.OrdinalIgnoreCase))
+                return svg;
+
+            if (!string.IsNullOrWhiteSpace(Width)) root.SetAttributeValue("width", Width);
+            if (!string.IsNullOrWhiteSpace(Height)) root.SetAttributeValue("height", Height);
+            if (!string.IsNullOrWhiteSpace(Role)) root.SetAttributeValue("role", Role);
+            if (!string.IsNullOrWhiteSpace(AriaLabel)) root.SetAttributeValue("aria-label", AriaLabel);
+            if (!string.IsNullOrWhiteSpace(Class)) root.SetAttributeValue("class", Class);
+            if (!string.IsNullOrWhiteSpace(Style)) root.SetAttributeValue("style", Style);
+
+            return doc.ToString(SaveOptions.DisableFormatting);
+        }
+        catch
+        {
+            return svg; // if parse fails, return original
+        }
+    }
+}
