@@ -18,10 +18,12 @@ namespace Calendrier
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddSyncfusionBlazor();
+
             builder.Services.AddSingleton<AppSettingsService>();
+            builder.Services.AddSingleton<OrderService>();
 
 #if DEBUG
-    		builder.Services.AddBlazorWebViewDeveloperTools();
+            builder.Services.AddBlazorWebViewDeveloperTools();
     		builder.Logging.AddDebug();
 #endif
 

@@ -1,6 +1,8 @@
 ﻿@page "/orders"
 @using System.Text.Json
 @using Calendrier.Components.Shared
+@using Calendrier.Models
+@using Calendrier.Services
 @using Microsoft.Extensions.Configuration
 
 @if (OrderDataList == null)
@@ -104,7 +106,7 @@ else
     </div>
 </div>
 
-<EditListModal TItem="PaymentMethodItem"
+@* <EditListModal TItem="PaymentMethodItem"
                Title="Edit Payment Methods"
                Show="@ShowAddPaymentMethodModal"
                EditableItems="@EditablePaymentMethods"
@@ -112,8 +114,8 @@ else
                GetId="@(pm => pm.Id)"
                GetName="@(pm => pm.Name)"
                SetName="@( (pm, val) => pm.Name = val )"
-               OnCancel="CancelEditPaymentMethods" />
-
+               OnCancel="CancelEditPaymentMethods" /> *@
+@* 
 <EditListModal TItem="ProductTypeItem"
                Title="Edit Product Types"
                Show="@ShowAddProductTypeModal"
@@ -122,45 +124,16 @@ else
                GetId="@(pt => pt.Id)"
                GetName="@(pt => pt.Name)"
                SetName="@( (pt, val) => pt.Name = val )"
-               OnCancel="CancelEditProductTypes" />
+               OnCancel="CancelEditProductTypes" /> *@
 
 @code {
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var orderDataJson = await File.ReadAllTextAsync(OrderDataFilePath);
-            var orderData = JsonSerializer.Deserialize<orderData>(
-                string.IsNullOrWhiteSpace(orderDataJson) || orderDataJson == "{}"
-                    ? "{\"orders\":[],\"paymentmethods\":[],\"producttypes\":[]}"
-                    : orderDataJson);
-
-            if (orderData?.Orders != null)
-                OrderDataList = orderData.Orders;
-            if (orderData?.PaymentMethods != null)
-                PaymentMethods = orderData.PaymentMethods;
-            if (orderData?.ProductTypes != null)
-                ProductTypes = orderData.ProductTypes;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Deserialization error: {ex.Message}");
-            OrderDataList = new List<OrderItem>();
-            PaymentMethods = new List<PaymentMethodItem>();
-            ProductTypes = new List<ProductTypeItem>();
-        }
-    }
-
-    private string OrderDataFilePath => Configuration["OrderDataFilePath"] ?? Path.Combine(AppContext.BaseDirectory, ".orderData");
-
     [Inject]
-    private IConfiguration Configuration { get; set; } = default!;
+    private OrderService orderService { get; set; } = default!;
 
     private List<OrderItem> OrderDataList { get; set; } = new();
-    private OrderItem NewItem { get; set; } = new();
     private List<PaymentMethodItem> PaymentMethods { get; set; } = new();
     private List<ProductTypeItem> ProductTypes { get; set; } = new();
+    private OrderItem NewItem { get; set; } = new();
     private string NewPaymentMethodName { get; set; } = string.Empty;
     private string NewProductTypeName { get; set; } = string.Empty;
     private bool ShowAddPaymentMethodModal { get; set; } = false;
@@ -173,6 +146,24 @@ else
 
     private int NextPaymentMethodId => (EditablePaymentMethods.Count > 0 ? EditablePaymentMethods.Max(pm => pm.Id) : 0) + 1;
     private int NextProductTypeId => (EditableProductTypes.Count > 0 ? EditableProductTypes.Max(pt => pt.Id) : 0) + 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var orderData = await orderService.LoadOrderDataAsync();
+            OrderDataList = orderData?.Orders ?? [];
+            PaymentMethods = orderData?.PaymentMethods ?? [];
+            ProductTypes = orderData?.ProductTypes ?? [];
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Deserialization error: {ex.Message}");
+            OrderDataList = [];
+            PaymentMethods = [];
+            ProductTypes = [];
+        }
+    }
 
     private void ShowEditPaymentMethods()
     {
@@ -204,8 +195,8 @@ else
         // Update the main list as well
         EditablePaymentMethods = PaymentMethods.Select(pm => new PaymentMethodItem { Id = pm.Id, Name = pm.Name }).ToList();
 
-        var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
-        await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        await orderService.SaveOrderDataAsync(OrderDataList, PaymentMethods, ProductTypes);
+
         NewPaymentMethodName = string.Empty;
         ShowAddPaymentMethodModal = false;
         StateHasChanged();
@@ -233,8 +224,8 @@ else
         // Update the main list as well
         EditableProductTypes = ProductTypes.Select(pt => new ProductTypeItem { Id = pt.Id, Name = pt.Name }).ToList();
 
-        var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
-        await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+        await orderService.SaveOrderDataAsync(OrderDataList, PaymentMethods, ProductTypes);
+
         NewProductTypeName = string.Empty;
         ShowAddProductTypeModal = false;
         StateHasChanged();
@@ -285,8 +276,9 @@ else
     {
         OrderDataList.Add(NewItem);
         NewItem = new OrderItem();
-        var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
-        await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+
+        await orderService.SaveOrderDataAsync(OrderDataList, PaymentMethods, ProductTypes);
+        
         StateHasChanged();
     }
 
@@ -314,14 +306,14 @@ else
                 EditingOrderItem.PaidFrom = newId;
             }
 
-            // Save updated PaymentMethods to user data file
-            var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
-            await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+            await orderService.SaveOrderDataAsync(OrderDataList, PaymentMethods, ProductTypes);
         }
+
         NewPaymentMethodName = string.Empty;
         ShowAddPaymentMethodModal = false;
         EditingOrderItem = null;
         IsForNewItem = false;
+        
         StateHasChanged();
     }
 
@@ -343,12 +335,12 @@ else
             ProductTypes.Add(newType);
             NewItem.ProductTypeId = newId;
 
-            // Save updated ProductTypes to user data file
-            var orderData = new orderData { Orders = OrderDataList, PaymentMethods = PaymentMethods, ProductTypes = ProductTypes };
-            await File.WriteAllTextAsync(OrderDataFilePath, JsonSerializer.Serialize(orderData, new JsonSerializerOptions { WriteIndented = true }));
+            await orderService.SaveOrderDataAsync(OrderDataList, PaymentMethods, ProductTypes);
         }
+        
         NewProductTypeName = string.Empty;
         ShowAddProductTypeModal = false;
+        
         StateHasChanged();
     }
 
