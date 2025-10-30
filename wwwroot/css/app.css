@@ -3,6 +3,14 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+.gradient-text {
+    background: -webkit-linear-gradient(rgb(0, 0, 0) 0%, rgb(58, 6, 71) 70%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.nav-link{
+    padding: 0 20px;
+}
 a, .btn-link {
     color: #006bb7;
 }
