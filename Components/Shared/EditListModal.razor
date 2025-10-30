@@ -1,3 +1,4 @@
+@using Calendrier.Models
 @typeparam TItem
 @if (Show)
 {
@@ -94,11 +95,11 @@
                 if (System.IO.File.Exists(filePath))  
                 {  
                     var json = await System.IO.File.ReadAllTextAsync(filePath);  
-                    var orderData = System.Text.Json.JsonSerializer.Deserialize<orderData>(json);  
+                    var orderData = System.Text.Json.JsonSerializer.Deserialize<OrderData>(json);  
                     if (orderData != null)  
                     {  
                         // Find the property to update  
-                        var prop = typeof(orderData).GetProperties()  
+                        var prop = typeof(OrderData).GetProperties()  
                             .FirstOrDefault(p => p.PropertyType == typeof(List<TItem>));  
                         if (prop != null)  
                         {  
