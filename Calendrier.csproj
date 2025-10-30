@@ -61,10 +61,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.80" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.80" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.6" />
-        <PackageReference Include="Syncfusion.Blazor.Calendars" Version="29.2.11" />
+        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.120" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.120" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.10" />
+        <PackageReference Include="Syncfusion.Blazor.Calendars" Version="31.2.4" />
     </ItemGroup>
 
 </Project>

@@ -17,6 +17,23 @@
 
     <div id="app">Loading...</div>
 
+    <script>
+        window.blazorSetTheme = function (theme) {
+            try {
+                document.documentElement.setAttribute('data-bs-theme', theme || 'light');
+                try { localStorage.setItem('appTheme', theme); } catch (_) { }
+            } catch (e) {
+                console && console.warn('blazorSetTheme error', e);
+            }
+        };
+
+        // apply persisted theme (early)
+        try {
+            const persisted = localStorage.getItem('appTheme');
+            if (persisted) document.documentElement.setAttribute('data-bs-theme', persisted);
+        } catch (_) { }
+    </script>
+
     <div id="blazor-error-ui">
         An unhandled error has occurred.
         <a href="" class="reload">Reload</a>
