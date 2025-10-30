@@ -1,5 +1,53 @@
 ﻿@page "/"
+@implements IDisposable
 
-<h1>Hello, world!</h1>
+<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+    <div class="text-center">
+        <div class="display-1 fw-bold gradient-text">@CurrentTime</div>
+        <div class="h3 text-muted mt-2">@DateLine</div>
+        <div class="h5 text-muted mt-1">@DayName</div>
+    </div>
+</div>
 
-Welcome to your new app.
+@code {
+    private DateTime _now = DateTime.Now;
+    private System.Timers.Timer? _timer;
+
+    private string CurrentTime => _now.ToString("h:mmtt"); // e.g. 4:34PM
+    private string DayName => _now.ToString("dddd");      // e.g. Thursday
+    private string DateLine => $"{GetOrdinal(_now.Day)} of {_now:MMMM}"; // e.g. 5th of October
+
+    protected override void OnInitialized()
+    {
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (s, e) =>
+        {
+            // run UI update on renderer thread
+            _ = InvokeAsync(() =>
+            {
+                _now = DateTime.Now;
+                StateHasChanged();
+            });
+        };
+        _timer.AutoReset = true;
+        _timer.Start();
+    }
+
+    private static string GetOrdinal(int day)
+    {
+        if (day % 100 >= 11 && day % 100 <= 13) return day + "th";
+        return (day % 10) switch
+        {
+            1 => day + "st",
+            2 => day + "nd",
+            3 => day + "rd",
+            _ => day + "th",
+        };
+    }
+
+    public void Dispose()
+    {
+        _timer?.Stop();
+        _timer?.Dispose();
+    }
+}
